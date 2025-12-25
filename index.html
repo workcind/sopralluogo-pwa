@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Richiesta Sopralluogo - Condominio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3c72">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+      padding: 16px;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      padding: 24px 16px;
+      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      color: white;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+    .grid {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 768px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+      padding: 24px;
+    }
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .card-title svg { width: 24px; height: 24px; }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .required::after {
+      content: " *";
+      color: #e74c3c;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      background: linear-gradient(90deg, #27ae60, #2ecc71);
+      color: white;
+      border: none;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      opacity: 0.95;
+    }
+    .btn:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+    }
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .notice {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 16px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.95rem;
+      margin-top: 20px;
+    }
+    .notice strong { color: #0d47a1; }
+    .interventi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .intervento-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .intervento-item:hover { background: #e9ecef; }
+    .intervento-item.selected { background: #d4edda; border: 1px solid #28a745; }
+    .tariffario-list {
+      list-style: none;
+    }
+    .tariffario-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .tariffario-price {
+      background: linear-gradient(90deg, #3498db, #2980b9);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: bold;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    #downloadBtn {
+      display: none;
+      margin-top: 20px;
+    }
+    #downloadBtn.show {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔧 Richiesta Intervento Manutenzione Condominiale</h1>
+      <p class="subtitle">Compila il modulo per generare un documento PDF con la tua richiesta di sopralluogo</p>
+    </header>
+
+    <div class="grid">
+      <!-- Tariffario -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke-width="2"/>
+          </svg>
+          Tariffario Orario (Indicativo)
+        </div>
+        <ul class="tariffario-list">
+          <li class="tariffario-item">
+            <span>Manutenzione idraulica</span>
+            <span class="tariffario-price">€35,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Manutenzione elettrica</span>
+            <span class="tariffario-price">€40,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Riparazioni murarie</span>
+            <span class="tariffario-price">€30,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Pulizia e sanificazione</span>
+            <span class="tariffario-price">€25,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Manutenzione ascensori</span>
+            <span class="tariffario-price">€50,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Giardinaggio condominiale</span>
+            <span class="tariffario-price">€28,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Sostituzione infissi</span>
+            <span class="tariffario-price">€45,00/h</span>
+          </li>
+          <li class="tariffario-item">
+            <span>Assistenza caldaie</span>
+            <span class="tariffario-price">€42,00/h</span>
+          </li>
+        </ul>
+        <div class="notice">
+          <strong>Nota:</strong> I prezzi indicati sono puramente indicativi e non saranno inclusi nel documento PDF generato.
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2"/>
+            <polyline points="14 2 14 8 20 8" stroke-width="2"/>
+            <line x1="16" y1="13" x2="8" y2="13" stroke-width="2"/>
+            <line x1="16" y1="17" x2="8" y2="17" stroke-width="2"/>
+            <polyline points="10 9 9 9 8 9" stroke-width="2"/>
+          </svg>
+          Richiesta Sopralluogo
+        </div>
+
+        <form id="sopralluogoForm">
+          <div class="form-group">
+            <label class="required">Via</label>
+            <input type="text" id="via" placeholder="Via Roma" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label class="required">Numero Civico</label>
+              <input type="text" id="civico" placeholder="12" required>
+            </div>
+            <div class="form-group">
+              <label class="required">CAP</label>
+              <input type="text" id="cap" placeholder="00100" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="required">Città</label>
+            <input type="text" id="citta" placeholder="Roma" required>
+          </div>
+
+          <div class="form-group">
+            <label class="required">Nome Referente</label>
+            <input type="text" id="nomeReferente" placeholder="Mario Rossi" required>
+          </div>
+
+          <div class="form-group">
+            <label class="required">Contatti Referente</label>
+            <input type="text" id="contattiReferente" placeholder="Tel: 3331234567 - Email: mario@email.com" required>
+          </div>
+
+          <div class="form-group">
+            <label class="required">Intervento richiesto</label>
+            <textarea id="descrizioneIntervento" placeholder="Descrivi brevemente il tipo di intervento richiesto..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo di intervento (facoltativo)</label>
+            <div class="interventi-grid" id="interventiContainer"></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label>Data Sopralluogo</label>
+              <input type="date" id="dataSopralluogo">
+            </div>
+            <div class="form-group">
+              <label>Orario Sopralluogo</label>
+              <input type="time" id="orarioSopralluogo">
+            </div>
+          </div>
+
+          <button type="submit" id="generateBtn" class="btn">
+            <span id="btnText">Genera PDF</span>
+          </button>
+
+          <button type="button" id="downloadBtn" class="btn">
+            <span>📥 Scarica PDF</span>
+          </button>
+
+          <div class="notice">
+            <strong>Nota:</strong> I campi con * sono obbligatori. Il PDF conterrà tutti i dati inseriti.
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registrato con successo:', registration.scope);
+          })
+          .catch(error => {
+            console.log('Registrazione Service Worker fallita:', error);
+          });
+      });
+    }
+
+    const { jsPDF } = window.jspdf;
+
+    let pdfBlob = null;
+    let fileName = '';
+
+    const interventiOptions = [
+      'Manutenzione idraulica',
+      'Manutenzione elettrica',
+      'Riparazioni murarie',
+      'Pulizia e sanificazione',
+      'Manutenzione ascensori',
+      'Giardinaggio condominiale',
+      'Sostituzione infissi',
+      'Assistenza caldaie'
+    ];
+
+    let selectedInterventi = [];
+
+    const container = document.getElementById('interventiContainer');
+    interventiOptions.forEach(intervento => {
+      const div = document.createElement('div');
+      div.className = 'intervento-item';
+      div.innerHTML = `
+        <input type="checkbox" id="chk_${intervento.replace(/\s+/g, '_')}" style="width:16px;height:16px;">
+        <label for="chk_${intervento.replace(/\s+/g, '_')}">${intervento}</label>
+      `;
+      const checkbox = div.querySelector('input');
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selectedInterventi.push(intervento);
+        } else {
+          selectedInterventi = selectedInterventi.filter(i => i !== intervento);
+        }
+        div.classList.toggle('selected', checkbox.checked);
+      });
+      container.appendChild(div);
+    });
+
+    document.getElementById('sopralluogoForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const requiredIds = ['via', 'civico', 'cap', 'citta', 'nomeReferente', 'contattiReferente', 'descrizioneIntervento'];
+      for (let id of requiredIds) {
+        if (!document.getElementById(id).value.trim()) {
+          alert('⚠️ Compila tutti i campi obbligatori.');
+          return;
+        }
+      }
+
+      const data = {
+        via: document.getElementById('via').value,
+        civico: document.getElementById('civico').value,
+        cap: document.getElementById('cap').value,
+        citta: document.getElementById('citta').value,
+        nomeReferente: document.getElementById('nomeReferente').value,
+        contattiReferente: document.getElementById('contattiReferente').value,
+        descrizioneIntervento: document.getElementById('descrizioneIntervento').value,
+        dataSopralluogo: document.getElementById('dataSopralluogo').value,
+        orarioSopralluogo: document.getElementById('orarioSopralluogo').value,
+        interventi: selectedInterventi
+      };
+
+      const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('it-IT') : 'Non specificata';
+      const formatTime = (timeStr) => timeStr || 'Non specificato';
+
+      try {
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        doc.setFillColor(30, 60, 114);
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RICHIESTA INTERVENTO MANUTENZIONE CONDOMINIALE', 105, 22, { align: 'center' });
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Documento per richiesta di sopralluogo tecnico', 105, 30, { align: 'center' });
+
+        let y = 50;
+        const marginLeft = 20;
+
+        const addSection = (title, lines) => {
+          if (y > 260) { doc.addPage(); y = 20; }
+          doc.setTextColor(30, 60, 114);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text(title, marginLeft, y);
+          y += 10;
+
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(marginLeft, y, 210 - marginLeft, y);
+          y += 8;
+
+          doc.setTextColor(50, 50, 50);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'normal');
+          lines.forEach(line => {
+            if (y > 260) { doc.addPage(); y = 20; }
+            doc.text(line, marginLeft, y);
+            y += 7;
+          });
+          y += 6;
+        };
+
+        addSection('DATI CONDOMINIO', [
+          `Via: ${data.via}`,
+          `Numero Civico: ${data.civico}`,
+          `CAP: ${data.cap}`,
+          `Città: ${data.citta}`
+        ]);
+
+        addSection('DATI REFERENTE', [
+          `Nome: ${data.nomeReferente}`,
+          `Contatti: ${data.contattiReferente}`
+        ]);
+
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setTextColor(30, 60, 114);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('INTERVENTO RICHIESTO', marginLeft, y);
+        y += 10;
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(marginLeft, y, 210 - marginLeft, y);
+        y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(11);
+        doc.text('Descrizione:', marginLeft, y);
+        y += 7;
+
+        const descLines = doc.splitTextToSize(data.descrizioneIntervento, 170);
+        descLines.forEach(line => {
+          if (y > 260) { doc.addPage(); y = 20; }
+          doc.text(line, marginLeft, y);
+          y += 7;
+        });
+        y += 5;
+
+        const tipologie = data.interventi.length > 0 ? data.interventi.join(', ') : 'Nessuna';
+        doc.text(`Tipologia(e): ${tipologie}`, marginLeft, y);
+        y += 10;
+
+        addSection('PREFERENZE SOPRALLUOGO', [
+          `Data: ${formatDate(data.dataSopralluogo)}`,
+          `Orario: ${formatTime(data.orarioSopralluogo)}`
+        ]);
+
+        const now = new Date().toLocaleString('it-IT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text(`📄 Generato il: ${now}`, marginLeft, 287);
+
+        pdfBlob = doc.output('blob');
+        fileName = `richiesta_sopralluogo_${new Date().getTime()}.pdf`;
+
+        document.getElementById('downloadBtn').classList.add('show');
+        document.getElementById('generateBtn').style.display = 'none';
+
+        alert('✅ PDF generato! Premi "Scarica PDF" per salvarlo.');
+
+      } catch (err) {
+        console.error('Errore PDF:', err);
+        alert(`❌ Errore durante la generazione del PDF:\n${err.message}`);
+      }
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      if (!pdfBlob) {
+        alert('⚠️ Nessun PDF da scaricare. Generane uno prima.');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(pdfBlob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+      }, 100);
+
+      document.getElementById('downloadBtn').classList.remove('show');
+      document.getElementById('generateBtn').style.display = 'flex';
+    });
+  </script>
+</body>
+</html>

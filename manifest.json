@@ -1,0 +1,23 @@
+{
+  "name": "Richiesta Sopralluogo Condominiale",
+  "short_name": "Sopralluoghi",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#1e3c72",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "scope": "/",
+  "description": "Genera richieste di sopralluogo tecnico per condomini in PDF.",
+  "orientation": "portrait-primary"
+}
