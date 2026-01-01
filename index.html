@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Richiesta Sopralluogo - Condominio</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e3c72">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -112,17 +113,6 @@
       background: #95a5a6;
       cursor: not-allowed;
     }
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top: 2px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
     .notice {
       background: #e3f2fd;
       border-left: 4px solid #2196f3;
@@ -168,21 +158,13 @@
       min-width: 80px;
       text-align: center;
     }
-
-    #downloadBtn {
-      display: none;
-      margin-top: 20px;
-    }
-    #downloadBtn.show {
-      display: flex;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>🔧 Richiesta Intervento Manutenzione Condominiale</h1>
-      <p class="subtitle">Compila il modulo per generare un documento PDF con la tua richiesta di sopralluogo</p>
+      <h1>🔧 Richiesta di Sopralluogo</h1>
+      <p class="subtitle">Compila il modulo per generare e scaricare un documento PDF con la tua richiesta</p>
     </header>
 
     <div class="grid">
@@ -229,7 +211,7 @@
           </li>
         </ul>
         <div class="notice">
-          <strong>Nota:</strong> I prezzi indicati sono puramente indicativi e non saranno inclusi nel documento PDF generato.
+          <strong>Nota:</strong> I prezzi indicati sono puramente indicativi e non saranno inclusi nel PDF.
         </div>
       </div>
 
@@ -259,7 +241,7 @@
             </div>
             <div class="form-group">
               <label class="required">CAP</label>
-              <input type="text" id="cap" placeholder="00100" required>
+              <input type="text" id="cap" placeholder="00100" required pattern="\d{5}" title="CAP: 5 cifre">
             </div>
           </div>
 
@@ -273,14 +255,26 @@
             <input type="text" id="nomeReferente" placeholder="Mario Rossi" required>
           </div>
 
-          <div class="form-group">
-            <label class="required">Contatti Referente</label>
-            <input type="text" id="contattiReferente" placeholder="Tel: 3331234567 - Email: mario@email.com" required>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="emailReferente" placeholder="mario@email.com">
+            </div>
+            <div class="form-group">
+              <label>Telefono</label>
+              <input type="tel" id="telefonoReferente" placeholder="333 123 4567">
+            </div>
           </div>
 
           <div class="form-group">
             <label class="required">Intervento richiesto</label>
             <textarea id="descrizioneIntervento" placeholder="Descrivi brevemente il tipo di intervento richiesto..." required></textarea>
+          </div>
+
+          <!-- ✅ CAMPO SEGNALATORE DOPO INTERVENTO RICHIESTO -->
+          <div class="form-group">
+            <label>Segnalatore</label>
+            <input type="text" id="segnalatore" placeholder="Es. Amministratore, ditta, cliente privato">
           </div>
 
           <div class="form-group">
@@ -300,15 +294,11 @@
           </div>
 
           <button type="submit" id="generateBtn" class="btn">
-            <span id="btnText">Genera PDF</span>
-          </button>
-
-          <button type="button" id="downloadBtn" class="btn">
-            <span>📥 Scarica PDF</span>
+            <span id="btnText">✅ Genera e Scarica PDF</span>
           </button>
 
           <div class="notice">
-            <strong>Nota:</strong> I campi con * sono obbligatori. Il PDF conterrà tutti i dati inseriti.
+            <strong>Nota:</strong> I campi con * sono obbligatori. Il PDF verrà scaricato automaticamente.
           </div>
         </form>
       </div>
@@ -316,23 +306,18 @@
   </div>
 
   <script>
+    // ✅ Service Worker (PWA)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
-          .then(registration => {
-            console.log('Service Worker registrato con successo:', registration.scope);
-          })
-          .catch(error => {
-            console.log('Registrazione Service Worker fallita:', error);
-          });
+          .catch(err => console.warn('SW non registrato:', err));
       });
     }
 
+    // Inizializza jsPDF
     const { jsPDF } = window.jspdf;
 
-    let pdfBlob = null;
-    let fileName = '';
-
+    // Interventi
     const interventiOptions = [
       'Manutenzione idraulica',
       'Manutenzione elettrica',
@@ -343,9 +328,9 @@
       'Sostituzione infissi',
       'Assistenza caldaie'
     ];
-
     let selectedInterventi = [];
 
+    // Render checkbox
     const container = document.getElementById('interventiContainer');
     interventiOptions.forEach(intervento => {
       const div = document.createElement('div');
@@ -366,30 +351,62 @@
       container.appendChild(div);
     });
 
+    // ✅ Genera e SCARICA PDF AL PRIMO CLIC
     document.getElementById('sopralluogoForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
-      const requiredIds = ['via', 'civico', 'cap', 'citta', 'nomeReferente', 'contattiReferente', 'descrizioneIntervento'];
-      for (let id of requiredIds) {
-        if (!document.getElementById(id).value.trim()) {
+      // Validazione obbligatori
+      const requiredIds = ['via', 'civico', 'cap', 'citta', 'nomeReferente', 'descrizioneIntervento'];
+      for (const id of requiredIds) {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) {
           alert('⚠️ Compila tutti i campi obbligatori.');
+          el.focus();
           return;
         }
       }
 
+      // Validazione CAP
+      const cap = document.getElementById('cap').value;
+      if (cap && !/^\d{5}$/.test(cap)) {
+        alert('⚠️ CAP non valido: inserisci 5 cifre.');
+        document.getElementById('cap').focus();
+        return;
+      }
+
+      // Validazione email
+      const email = document.getElementById('emailReferente').value;
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('⚠️ Email non valida.');
+        document.getElementById('emailReferente').focus();
+        return;
+      }
+
+      // Validazione telefono (opzionale ma controllato)
+      const tel = document.getElementById('telefonoReferente').value;
+      if (tel && !/^[\d\s\-\+()]{7,20}$/.test(tel)) {
+        alert('⚠️ Telefono non valido.');
+        document.getElementById('telefonoReferente').focus();
+        return;
+      }
+
+      // Raccolta dati
       const data = {
         via: document.getElementById('via').value,
         civico: document.getElementById('civico').value,
         cap: document.getElementById('cap').value,
         citta: document.getElementById('citta').value,
         nomeReferente: document.getElementById('nomeReferente').value,
-        contattiReferente: document.getElementById('contattiReferente').value,
+        email: email,
+        telefono: tel,
         descrizioneIntervento: document.getElementById('descrizioneIntervento').value,
+        segnalatore: document.getElementById('segnalatore').value.trim() || 'Non specificato',
         dataSopralluogo: document.getElementById('dataSopralluogo').value,
         orarioSopralluogo: document.getElementById('orarioSopralluogo').value,
         interventi: selectedInterventi
       };
 
+      // Formattazione data
       const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('it-IT') : 'Non specificata';
       const formatTime = (timeStr) => timeStr || 'Non specificato';
 
@@ -400,6 +417,7 @@
           format: 'a4'
         });
 
+        // Intestazione
         doc.setFillColor(30, 60, 114);
         doc.rect(0, 0, 210, 40, 'F');
         doc.setTextColor(255, 255, 255);
@@ -420,12 +438,10 @@
           doc.setFont('helvetica', 'bold');
           doc.text(title, marginLeft, y);
           y += 10;
-
           doc.setDrawColor(200, 200, 200);
           doc.setLineWidth(0.5);
           doc.line(marginLeft, y, 210 - marginLeft, y);
           y += 8;
-
           doc.setTextColor(50, 50, 50);
           doc.setFontSize(11);
           doc.setFont('helvetica', 'normal');
@@ -437,6 +453,7 @@
           y += 6;
         };
 
+        // Sezioni PDF
         addSection('DATI CONDOMINIO', [
           `Via: ${data.via}`,
           `Numero Civico: ${data.civico}`,
@@ -444,22 +461,28 @@
           `Città: ${data.citta}`
         ]);
 
+        const contatti = [];
+        if (data.email) contatti.push(`Email: ${data.email}`);
+        if (data.telefono) contatti.push(`Tel: ${data.telefono}`);
         addSection('DATI REFERENTE', [
           `Nome: ${data.nomeReferente}`,
-          `Contatti: ${data.contattiReferente}`
+          ...contatti
         ]);
 
+        addSection('SEGNALATORE', [
+          data.segnalatore
+        ]);
+
+        // Intervento richiesto
         if (y > 260) { doc.addPage(); y = 20; }
         doc.setTextColor(30, 60, 114);
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('INTERVENTO RICHIESTO', marginLeft, y);
         y += 10;
-
         doc.setDrawColor(200, 200, 200);
         doc.line(marginLeft, y, 210 - marginLeft, y);
         y += 8;
-
         doc.setTextColor(50, 50, 50);
         doc.setFontSize(11);
         doc.text('Descrizione:', marginLeft, y);
@@ -482,6 +505,7 @@
           `Orario: ${formatTime(data.orarioSopralluogo)}`
         ]);
 
+        // Footer
         const now = new Date().toLocaleString('it-IT', {
           day: '2-digit',
           month: '2-digit',
@@ -491,41 +515,27 @@
         });
         doc.setTextColor(100, 100, 100);
         doc.setFontSize(10);
-        doc.text(`📄 Generato il: ${now}`, marginLeft, 287);
+        doc.text(`Generato il: ${now}`, marginLeft, 287);
 
-        pdfBlob = doc.output('blob');
-        fileName = `richiesta_sopralluogo_${new Date().getTime()}.pdf`;
+        // ✅ SCARICA IMMEDIATAMENTE
+        const pdfBlob = doc.output('blob');
+        const fileName = `richiesta_sopralluogo_${new Date().getTime()}.pdf`;
 
-        document.getElementById('downloadBtn').classList.add('show');
-        document.getElementById('generateBtn').style.display = 'none';
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfBlob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(link.href), 100);
 
-        alert('✅ PDF generato! Premi "Scarica PDF" per salvarlo.');
+        // ✅ MESSAGGIO DI CONFERMA
+        alert('✅ PDF generato e scaricato con successo!\nControlla la cartella "Download".');
 
       } catch (err) {
         console.error('Errore PDF:', err);
         alert(`❌ Errore durante la generazione del PDF:\n${err.message}`);
       }
-    });
-
-    document.getElementById('downloadBtn').addEventListener('click', function() {
-      if (!pdfBlob) {
-        alert('⚠️ Nessun PDF da scaricare. Generane uno prima.');
-        return;
-      }
-
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(pdfBlob);
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setTimeout(() => {
-        URL.revokeObjectURL(link.href);
-      }, 100);
-
-      document.getElementById('downloadBtn').classList.remove('show');
-      document.getElementById('generateBtn').style.display = 'flex';
     });
   </script>
 </body>
